@@ -28,6 +28,10 @@ export class ApiService {
     this.apiResponseParser = apiResponseParser || new ApiResponseParser();
   }
 
+  setSupportsReasoning(value: boolean): void {
+    this.apiResponseParser.setSupportsReasoning(value);
+  }
+
   /**
    * Make a streaming API request
    * @param url The API endpoint URL

@@ -12,6 +12,7 @@ import {
   AI_SERVICE_OPENAI,
   AI_SERVICE_OPENROUTER,
   API_ENDPOINTS,
+  REASONING_MODELS,
   NEWLINE,
   ROLE_USER,
   TITLE_INFERENCE_ERROR_HEADER,
@@ -148,6 +149,15 @@ export abstract class BaseAiService implements IAiApiService {
     if (settings) {
       config.url = url;
     }
+
+    const modelName = config.model?.includes("@")
+      ? config.model.split("@")[1]
+      : config.model;
+    const supportsReasoning = REASONING_MODELS.some((prefix) =>
+      modelName?.startsWith(prefix)
+    );
+    this.apiResponseParser.setSupportsReasoning(supportsReasoning);
+    this.apiService.setSupportsReasoning(supportsReasoning);
 
     return options.stream && editor
       ? this.callStreamingAPI(apiKey, messages, config, editor, headingPrefix, setAtCursor, settings)

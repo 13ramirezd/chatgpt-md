@@ -42,6 +42,7 @@ export class ApiResponseParser {
   private notificationService: NotificationService;
   private collectedCitations: Set<string> = new Set();
   private collectedReasoning: string[] = [];
+  private supportsReasoning: boolean = true;
 
   // Table buffering properties
   private tableBuffer: string = "";
@@ -50,6 +51,10 @@ export class ApiResponseParser {
 
   constructor(notificationService?: NotificationService) {
     this.notificationService = notificationService || new NotificationService();
+  }
+
+  setSupportsReasoning(value: boolean): void {
+    this.supportsReasoning = value;
   }
 
   /**
@@ -272,11 +277,11 @@ export class ApiResponseParser {
         try {
           const json = JSON.parse(payloadString);
 
-          if (json.reasoning) {
+          if (this.supportsReasoning && json.reasoning) {
             this.collectedReasoning.push(json.reasoning);
           }
 
-          if (json.delta?.reasoning) {
+          if (this.supportsReasoning && json.delta?.reasoning) {
             this.collectedReasoning.push(json.delta.reasoning);
           }
 
@@ -331,7 +336,7 @@ export class ApiResponseParser {
         }
       }
 
-      if (json.reasoning) {
+      if (this.supportsReasoning && json.reasoning) {
         this.collectedReasoning.push(json.reasoning);
       }
 
@@ -343,7 +348,7 @@ export class ApiResponseParser {
           for (const choice of finishedChoices) {
             const reasoning =
               choice.reasoning || choice.message?.reasoning || null;
-            if (reasoning) {
+            if (this.supportsReasoning && reasoning) {
               this.collectedReasoning.push(reasoning);
             }
           }
@@ -386,11 +391,11 @@ export class ApiResponseParser {
     try {
       const json = JSON.parse(line);
 
-      if (json.reasoning) {
+      if (this.supportsReasoning && json.reasoning) {
         this.collectedReasoning.push(json.reasoning);
       }
 
-      if (json.message?.reasoning) {
+      if (this.supportsReasoning && json.message?.reasoning) {
         this.collectedReasoning.push(json.message.reasoning);
       }
 
@@ -439,14 +444,14 @@ export class ApiResponseParser {
 
       const json = JSON.parse(payloadString);
 
-      if (json.reasoning) {
+      if (this.supportsReasoning && json.reasoning) {
         this.collectedReasoning.push(json.reasoning);
       }
 
       // Handle Gemini's streaming response format
       if (json.candidates && json.candidates.length > 0) {
         const candidate = json.candidates[0];
-        if (candidate.reasoning) {
+        if (this.supportsReasoning && candidate.reasoning) {
           this.collectedReasoning.push(candidate.reasoning);
         }
         if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
@@ -560,7 +565,7 @@ export class ApiResponseParser {
       text += "\n```";
     }
 
-    if (this.collectedReasoning.length > 0) {
+    if (this.supportsReasoning && this.collectedReasoning.length > 0) {
       const reasoningText = this.collectedReasoning.join("\n\n");
       const inserted = appendReasoningBlockquote(editor, reasoningText, setAtCursor);
       text += inserted;

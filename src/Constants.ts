@@ -15,6 +15,16 @@ export const API_ENDPOINTS = {
   [AI_SERVICE_GEMINI]: "/v1beta/models/{model}:generateContent",
 };
 
+// Models that return additional reasoning data
+export const REASONING_MODELS = [
+  "o1",
+  "o3",
+  "o4",
+  "gpt-4.1",
+  "gpt-5",
+  "deepseek-r1",
+];
+
 export const ADD_COMMENT_BLOCK_COMMAND_ID = "add-comment-block";
 export const ADD_HR_COMMAND_ID = "add-hr";
 export const CALL_CHATGPT_API_COMMAND_ID = "call-chatgpt-api";
