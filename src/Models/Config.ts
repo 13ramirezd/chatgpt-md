@@ -60,6 +60,8 @@ export interface ChatBehaviorSettings {
   generateAtCursor: boolean;
   /** Whether to automatically infer title after 4 messages have been exchanged */
   autoInferTitle: boolean;
+  /** Whether to append model reasoning after responses */
+  showReasoning: boolean;
   /** System message that provides context about the Obsidian/ChatGPT MD plugin environment */
   pluginSystemMessage: string;
 }
@@ -206,6 +208,7 @@ export const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
   stream: true,
   generateAtCursor: false,
   autoInferTitle: false,
+  showReasoning: true,
   pluginSystemMessage: PLUGIN_SYSTEM_MESSAGE,
 
   // Formatting

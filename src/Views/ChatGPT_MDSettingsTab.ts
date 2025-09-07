@@ -111,6 +111,13 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
         group: "Chat Behavior",
       },
       {
+        id: "showReasoning",
+        name: "Show reasoning",
+        description: "Append reasoning after responses when supported",
+        type: "toggle",
+        group: "Chat Behavior",
+      },
+      {
         id: "inferTitleLanguage",
         name: "Infer Title Language",
         description: "Language to use for title inference.",
