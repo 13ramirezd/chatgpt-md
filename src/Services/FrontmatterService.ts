@@ -46,10 +46,8 @@ export class FrontmatterService {
       ? parseSettingsFrontmatter(settings.defaultChatFrontmatter)
       : {};
 
-    // Merge configurations with proper priority order
-    const mergedConfig = { ...settings, ...defaultFrontmatter, ...frontmatter } as Record<string, any>;
-
     // Determine AI service
+    const mergedConfig = { ...settings, ...defaultFrontmatter, ...frontmatter } as Record<string, any>;
     const aiService =
       mergedConfig.aiService ||
       aiProviderFromUrl(mergedConfig.url, mergedConfig.model) ||
@@ -67,6 +65,11 @@ export class FrontmatterService {
     };
     const defaultConfig = serviceDefaults[aiService] || DEFAULT_OPENAI_CONFIG;
 
+    const reasoningValue =
+      frontmatter.reasoning ??
+      defaultFrontmatter.reasoning ??
+      settings.showReasoning;
+
     // Return final configuration with everything merged
     return {
       ...defaultConfig,
@@ -74,6 +77,8 @@ export class FrontmatterService {
       ...defaultFrontmatter,
       ...frontmatter,
       aiService,
+      reasoning: reasoningValue,
+      showReasoning: reasoningValue,
     };
   }
 
@@ -116,6 +121,9 @@ export class FrontmatterService {
       if (typeof value === "string") {
         return `${key}: "${value}"`;
       }
+      if (typeof value === "boolean") {
+        return `${key}: ${value}`;
+      }
       return `${key}: ${value}`;
     });
 
@@ -147,6 +155,7 @@ export class FrontmatterService {
     // Start with basic settings
     let frontmatterObj: Record<string, any> = {
       stream: settings.stream,
+      reasoning: settings.showReasoning,
       ...additionalSettings,
     };
 

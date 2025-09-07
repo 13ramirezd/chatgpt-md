@@ -22,6 +22,7 @@ max_tokens: ${DEFAULT_OPENAI_CONFIG.max_tokens}
 model: ${DEFAULT_OPENAI_CONFIG.model}
 presence_penalty: ${DEFAULT_OPENAI_CONFIG.presence_penalty}
 stream: true
+reasoning: true
 temperature: ${DEFAULT_OPENAI_CONFIG.temperature}
 ---`;
 };
