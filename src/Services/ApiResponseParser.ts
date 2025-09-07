@@ -14,6 +14,26 @@ import { NotificationService } from "./NotificationService";
 import { getHeaderRole, unfinishedCodeBlock } from "src/Utilities/TextHelpers";
 import { ApiService } from "./ApiService";
 
+export function appendReasoningBlockquote(
+  editor: Editor,
+  text: string,
+  setAtCursor?: boolean
+): string {
+  const blockquote = "\n> " + text.trim().replace(/\n/g, "\n> ");
+  if (setAtCursor) {
+    editor.replaceSelection(blockquote);
+  } else {
+    const cursor = editor.getCursor();
+    editor.replaceRange(blockquote, cursor);
+    const lines = blockquote.split("\n");
+    editor.setCursor({
+      line: cursor.line + lines.length - 1,
+      ch: lines[lines.length - 1].length,
+    });
+  }
+  return blockquote;
+}
+
 /**
  * ApiResponseParser handles parsing of API responses
  * It centralizes response parsing logic for different API formats
@@ -21,6 +41,7 @@ import { ApiService } from "./ApiService";
 export class ApiResponseParser {
   private notificationService: NotificationService;
   private collectedCitations: Set<string> = new Set();
+  private collectedReasoning: string[] = [];
 
   // Table buffering properties
   private tableBuffer: string = "";
@@ -251,6 +272,14 @@ export class ApiResponseParser {
         try {
           const json = JSON.parse(payloadString);
 
+          if (json.reasoning) {
+            this.collectedReasoning.push(json.reasoning);
+          }
+
+          if (json.delta?.reasoning) {
+            this.collectedReasoning.push(json.delta.reasoning);
+          }
+
           // Handle content delta
           if (json.type === "content_block_delta") {
             if (json.delta && json.delta.text) {
@@ -302,11 +331,22 @@ export class ApiResponseParser {
         }
       }
 
+      if (json.reasoning) {
+        this.collectedReasoning.push(json.reasoning);
+      }
+
       if (json.choices && json.choices.length > 0) {
         // Check if any choices have finish_reason (this usually comes in the final chunk)
         const finishedChoices = json.choices.filter((choice: any) => choice.finish_reason);
 
         if (finishedChoices.length > 0) {
+          for (const choice of finishedChoices) {
+            const reasoning =
+              choice.reasoning || choice.message?.reasoning || null;
+            if (reasoning) {
+              this.collectedReasoning.push(reasoning);
+            }
+          }
           const completeChoices = finishedChoices.filter((choice: any) => choice.finish_reason === "stop");
           const truncatedChoices = finishedChoices.filter((choice: any) => choice.finish_reason === "length");
 
@@ -345,6 +385,14 @@ export class ApiResponseParser {
 
     try {
       const json = JSON.parse(line);
+
+      if (json.reasoning) {
+        this.collectedReasoning.push(json.reasoning);
+      }
+
+      if (json.message?.reasoning) {
+        this.collectedReasoning.push(json.message.reasoning);
+      }
 
       // Check for Ollama's chat API format which has a message object with content
       if (json.message && json.message.content) {
@@ -391,9 +439,16 @@ export class ApiResponseParser {
 
       const json = JSON.parse(payloadString);
 
+      if (json.reasoning) {
+        this.collectedReasoning.push(json.reasoning);
+      }
+
       // Handle Gemini's streaming response format
       if (json.candidates && json.candidates.length > 0) {
         const candidate = json.candidates[0];
+        if (candidate.reasoning) {
+          this.collectedReasoning.push(candidate.reasoning);
+        }
         if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
           // Extract text content from the parts array
           const content = candidate.content.parts
@@ -442,6 +497,8 @@ export class ApiResponseParser {
     let done = false;
     let text = "";
     let wasAborted = false;
+
+    this.collectedReasoning = [];
 
     try {
       while (!done) {
@@ -501,6 +558,13 @@ export class ApiResponseParser {
       const cursor = editor.getCursor();
       editor.replaceRange("\n```", cursor);
       text += "\n```";
+    }
+
+    if (this.collectedReasoning.length > 0) {
+      const reasoningText = this.collectedReasoning.join("\n\n");
+      const inserted = appendReasoningBlockquote(editor, reasoningText, setAtCursor);
+      text += inserted;
+      this.collectedReasoning = [];
     }
 
     if (this.collectedCitations.size > 0) {
