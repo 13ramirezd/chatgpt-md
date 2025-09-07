@@ -153,9 +153,9 @@ export abstract class BaseAiService implements IAiApiService {
     const modelName = config.model?.includes("@")
       ? config.model.split("@")[1]
       : config.model;
-    const supportsReasoning = REASONING_MODELS.some((prefix) =>
-      modelName?.startsWith(prefix)
-    );
+    const supportsReasoning =
+      Boolean(settings?.showReasoning) &&
+      REASONING_MODELS.some((prefix) => modelName?.startsWith(prefix));
     this.apiResponseParser.setSupportsReasoning(supportsReasoning);
     this.apiService.setSupportsReasoning(supportsReasoning);
 
