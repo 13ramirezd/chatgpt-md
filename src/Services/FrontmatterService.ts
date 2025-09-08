@@ -69,6 +69,10 @@ export class FrontmatterService {
       frontmatter.reasoning ??
       defaultFrontmatter.reasoning ??
       settings.showReasoning;
+    const debugReasoningValue =
+      frontmatter.debugReasoning ??
+      defaultFrontmatter.debugReasoning ??
+      false;
 
     // Return final configuration with everything merged
     return {
@@ -79,6 +83,7 @@ export class FrontmatterService {
       aiService,
       reasoning: reasoningValue,
       showReasoning: reasoningValue,
+      debugReasoning: debugReasoningValue,
     };
   }
 
@@ -156,6 +161,7 @@ export class FrontmatterService {
     let frontmatterObj: Record<string, any> = {
       stream: settings.stream,
       reasoning: settings.showReasoning,
+      debugReasoning: false,
       ...additionalSettings,
     };
 

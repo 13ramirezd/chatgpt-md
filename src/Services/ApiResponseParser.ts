@@ -53,6 +53,7 @@ export class ApiResponseParser {
   private collectedCitations: Set<string> = new Set();
   private collectedReasoning: string[] = [];
   private supportsReasoning: boolean = true;
+  private debugReasoning: boolean = false;
 
   // Table buffering properties
   private tableBuffer: string = "";
@@ -65,6 +66,17 @@ export class ApiResponseParser {
 
   setSupportsReasoning(value: boolean): void {
     this.supportsReasoning = value;
+  }
+
+  setDebugReasoning(value: boolean): void {
+    this.debugReasoning = value;
+  }
+
+  private addReasoningChunk(chunk: string): void {
+    if (this.debugReasoning) {
+      console.log("[ChatGPT MD] reasoning chunk:", chunk);
+    }
+    this.collectedReasoning.push(chunk);
   }
 
   /**
@@ -258,6 +270,9 @@ export class ApiResponseParser {
       }
     }
 
+    if (reasoning && this.debugReasoning) {
+      console.log("[ChatGPT MD] reasoning:", reasoning);
+    }
     return { text, reasoning };
   }
 
@@ -327,11 +342,11 @@ export class ApiResponseParser {
           const json = JSON.parse(payloadString);
 
           if (this.supportsReasoning && json.reasoning) {
-            this.collectedReasoning.push(json.reasoning);
+          this.addReasoningChunk(json.reasoning);
           }
 
           if (this.supportsReasoning && json.delta?.reasoning) {
-            this.collectedReasoning.push(json.delta.reasoning);
+          this.addReasoningChunk(json.delta.reasoning);
           }
 
           // Handle content delta
@@ -386,7 +401,7 @@ export class ApiResponseParser {
       }
 
       if (this.supportsReasoning && json.reasoning) {
-        this.collectedReasoning.push(json.reasoning);
+        this.addReasoningChunk(json.reasoning);
       }
 
       if (json.choices && json.choices.length > 0) {
@@ -398,7 +413,7 @@ export class ApiResponseParser {
             const reasoning =
               choice.reasoning || choice.message?.reasoning || null;
             if (this.supportsReasoning && reasoning) {
-              this.collectedReasoning.push(reasoning);
+              this.addReasoningChunk(reasoning);
             }
           }
           const completeChoices = finishedChoices.filter((choice: any) => choice.finish_reason === "stop");
@@ -441,11 +456,11 @@ export class ApiResponseParser {
       const json = JSON.parse(line);
 
       if (this.supportsReasoning && json.reasoning) {
-        this.collectedReasoning.push(json.reasoning);
+        this.addReasoningChunk(json.reasoning);
       }
 
       if (this.supportsReasoning && json.message?.reasoning) {
-        this.collectedReasoning.push(json.message.reasoning);
+        this.addReasoningChunk(json.message.reasoning);
       }
 
       // Check for Ollama's chat API format which has a message object with content
@@ -494,14 +509,14 @@ export class ApiResponseParser {
       const json = JSON.parse(payloadString);
 
       if (this.supportsReasoning && json.reasoning) {
-        this.collectedReasoning.push(json.reasoning);
+        this.addReasoningChunk(json.reasoning);
       }
 
       // Handle Gemini's streaming response format
       if (json.candidates && json.candidates.length > 0) {
         const candidate = json.candidates[0];
         if (this.supportsReasoning && candidate.reasoning) {
-          this.collectedReasoning.push(candidate.reasoning);
+          this.addReasoningChunk(candidate.reasoning);
         }
         if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
           // Extract text content from the parts array
@@ -619,6 +634,9 @@ export class ApiResponseParser {
     if (supportsReasoning && this.collectedReasoning.length > 0) {
       reasoning = this.collectedReasoning.join("\n\n");
       this.collectedReasoning = [];
+      if (this.debugReasoning && reasoning) {
+        console.log("[ChatGPT MD] reasoning:", reasoning);
+      }
     }
 
     if (this.collectedCitations.size > 0) {
