@@ -85,7 +85,7 @@ export class ApiService {
     payload: any,
     headers: Record<string, string>,
     serviceType: string
-  ): Promise<any> {
+  ): Promise<{ text: string; reasoning?: string }> {
     try {
       console.log(`[ChatGPT MD] Making non-streaming request to ${serviceType}`, payload);
 
@@ -101,20 +101,22 @@ export class ApiService {
       const data = responseUrl.json;
 
       if (data?.error) {
-        return this.errorService.handleApiError({ error: data.error }, serviceType, {
+        const errorText = this.errorService.handleApiError({ error: data.error }, serviceType, {
           returnForChat: true,
           showNotification: true,
           context: { model: payload.model, url },
         });
+        return { text: errorText };
       }
 
       return this.apiResponseParser.parseNonStreamingResponse(data, serviceType);
     } catch (error) {
-      return this.errorService.handleApiError(error, serviceType, {
+      const errorText = this.errorService.handleApiError(error, serviceType, {
         returnForChat: true,
         showNotification: true,
         context: { model: payload.model, url },
       });
+      return { text: errorText };
     }
   }
 

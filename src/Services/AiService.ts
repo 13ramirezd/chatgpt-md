@@ -2,7 +2,7 @@ import { Editor, MarkdownView } from "obsidian";
 import { Message } from "src/Models/Message";
 import { ApiService } from "./ApiService";
 import { ApiAuthService, isValidApiKey } from "./ApiAuthService";
-import { ApiResponseParser } from "./ApiResponseParser";
+import { ApiResponseParser, appendReasoningBlockquote } from "./ApiResponseParser";
 import { EditorService } from "./EditorService";
 import {
   AI_SERVICE_ANTHROPIC,
@@ -162,7 +162,16 @@ export abstract class BaseAiService implements IAiApiService {
     this.apiService.setSupportsReasoning(supportsReasoning);
 
     return options.stream && editor
-      ? this.callStreamingAPI(apiKey, messages, config, editor, headingPrefix, setAtCursor, settings)
+      ? this.callStreamingAPI(
+          apiKey,
+          messages,
+          config,
+          editor,
+          headingPrefix,
+          setAtCursor,
+          settings,
+          supportsReasoning
+        )
       : this.callNonStreamingAPI(apiKey, messages, config, settings);
   }
 
@@ -250,7 +259,8 @@ export abstract class BaseAiService implements IAiApiService {
     editor: Editor,
     headingPrefix: string,
     setAtCursor?: boolean,
-    settings?: ChatGPT_MDSettings
+    settings?: ChatGPT_MDSettings,
+    supportsReasoning?: boolean
   ): Promise<StreamingResponse>;
 
   /**
@@ -334,7 +344,7 @@ export abstract class BaseAiService implements IAiApiService {
       config.stream = false;
       const { payload, headers } = this.prepareApiCall(apiKey, messages, config, settings, true); // Skip plugin system message
 
-      const response = await this.apiService.makeNonStreamingRequest(
+      const { text } = await this.apiService.makeNonStreamingRequest(
         this.getApiEndpoint(config),
         payload,
         headers,
@@ -342,7 +352,7 @@ export abstract class BaseAiService implements IAiApiService {
       );
 
       // Return simple object with response and model
-      return response;
+      return text;
     } catch (err) {
       throw err; // Re-throw for title inference error handling
     }
@@ -486,7 +496,8 @@ export abstract class BaseAiService implements IAiApiService {
     editor: Editor,
     headingPrefix: string,
     setAtCursor?: boolean,
-    settings?: ChatGPT_MDSettings
+    settings?: ChatGPT_MDSettings,
+    supportsReasoning: boolean = false
   ): Promise<StreamingResponse> {
     try {
       // Use the common preparation method
@@ -510,11 +521,17 @@ export abstract class BaseAiService implements IAiApiService {
         editor,
         cursorPositions,
         setAtCursor,
-        this.apiService
+        this.apiService,
+        supportsReasoning
       );
 
+      if (supportsReasoning && result.reasoning) {
+        const inserted = appendReasoningBlockquote(editor, result.reasoning, setAtCursor);
+        result.text += inserted;
+      }
+
       // Use the helper method to process the result
-      return this.processStreamingResult(result);
+      return this.processStreamingResult({ text: result.text, wasAborted: result.wasAborted });
     } catch (err) {
       // The error is already handled by the ApiService, which uses ErrorService
       // Just return the error message for the chat
@@ -538,15 +555,21 @@ export abstract class BaseAiService implements IAiApiService {
       config.stream = false;
       const { payload, headers } = this.prepareApiCall(apiKey, messages, config, settings!);
 
-      const response = await this.apiService.makeNonStreamingRequest(
+      const { text, reasoning } = await this.apiService.makeNonStreamingRequest(
         this.getApiEndpoint(config),
         payload,
         headers,
         this.serviceType
       );
 
+      let fullString = text;
+      if (reasoning) {
+        const blockquote = "\n> " + reasoning.trim().replace(/\n/g, "\n> ");
+        fullString += blockquote;
+      }
+
       // Return simple object with response and model
-      return { fullString: response, model: payload.model };
+      return { fullString, model: payload.model };
     } catch (err) {
       const isTitleInference =
         messages.length === 1 && messages[0].content?.toString().includes("Infer title from the summary");

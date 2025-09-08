@@ -158,58 +158,97 @@ export class ApiResponseParser {
    * Parse a non-streaming API response
    * @param data The response data
    * @param serviceType The AI service type
-   * @returns The parsed content
+   * @returns The parsed content and optional reasoning
    */
-  parseNonStreamingResponse(data: any, serviceType: string): string {
+  parseNonStreamingResponse(
+    data: any,
+    serviceType: string
+  ): { text: string; reasoning?: string } {
+    let text = "";
+    let reasoning: string | undefined;
+
     switch (serviceType) {
       case AI_SERVICE_OPENAI:
       case AI_SERVICE_OPENROUTER:
-      case AI_SERVICE_LMSTUDIO:
+      case AI_SERVICE_LMSTUDIO: {
         // Handle OpenAI-compatible services with finish_reason validation
         const result = this.handleChoicesWithFinishReason(data.choices);
-        return result !== null ? result : "";
-      case AI_SERVICE_ANTHROPIC:
+        text = result !== null ? result : "";
+        if (this.supportsReasoning) {
+          reasoning =
+            data.reasoning ||
+            data.choices?.[0]?.reasoning ||
+            data.choices?.[0]?.message?.reasoning;
+        }
+        break;
+      }
+      case AI_SERVICE_ANTHROPIC: {
         // Anthropic's response format has a content array
         if (data.content && Array.isArray(data.content)) {
           // Extract text content from the content array
-          return data.content
+          text = data.content
             .filter((item: any) => item.type === "text")
             .map((item: any) => item.text)
             .join("");
+        } else {
+          text = data.content || JSON.stringify(data);
         }
-        return data.content || JSON.stringify(data);
-      case AI_SERVICE_GEMINI:
+        if (this.supportsReasoning) {
+          reasoning = data.reasoning || data.message?.reasoning;
+        }
+        break;
+      }
+      case AI_SERVICE_GEMINI: {
         // Gemini's response format has candidates array with content parts
         if (data.candidates && data.candidates.length > 0) {
           const candidate = data.candidates[0];
           if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-            return candidate.content.parts
+            text = candidate.content.parts
               .filter((part: any) => part.text)
               .map((part: any) => part.text)
               .join("");
           }
+          if (this.supportsReasoning && candidate.reasoning) {
+            reasoning = candidate.reasoning;
+          }
+        } else {
+          text = data.text || JSON.stringify(data);
         }
-        return data.text || JSON.stringify(data);
-      case AI_SERVICE_OLLAMA:
+        break;
+      }
+      case AI_SERVICE_OLLAMA: {
         // Check for Ollama's chat API format which has a message object with content
         if (data.message && data.message.content) {
-          return data.message.content;
+          text = data.message.content;
+        } else if (data.response) {
+          // Check for Ollama's generate API format which has a response field
+          text = data.response;
+        } else {
+          // Fallback to stringifying the data
+          text = JSON.stringify(data);
         }
-        // Check for Ollama's generate API format which has a response field
-        if (data.response) {
-          return data.response;
+        if (this.supportsReasoning) {
+          reasoning = data.reasoning || data.message?.reasoning;
         }
-        // Fallback to stringifying the data
-        return JSON.stringify(data);
-      default:
+        break;
+      }
+      default: {
         console.warn(`Unknown service type: ${serviceType}`);
         // Check for OpenAI-like structure with finish_reason validation
         const defaultResult = this.handleChoicesWithFinishReason(data?.choices);
         if (defaultResult !== null) {
-          return defaultResult;
+          text = defaultResult;
+        } else {
+          text = data?.response || JSON.stringify(data);
         }
-        return data?.response || JSON.stringify(data);
+        if (this.supportsReasoning) {
+          reasoning = data.reasoning || data.message?.reasoning;
+        }
+        break;
+      }
     }
+
+    return { text, reasoning };
   }
 
   /**
@@ -495,13 +534,15 @@ export class ApiResponseParser {
       newCursor: { line: number; ch: number };
     },
     setAtCursor?: boolean,
-    apiService?: ApiService
-  ): Promise<{ text: string; wasAborted: boolean }> {
+    apiService?: ApiService,
+    supportsReasoning: boolean = false
+  ): Promise<{ text: string; reasoning?: string; wasAborted: boolean }> {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let done = false;
     let text = "";
     let wasAborted = false;
+    let reasoning: string | undefined;
 
     this.collectedReasoning = [];
 
@@ -565,10 +606,8 @@ export class ApiResponseParser {
       text += "\n```";
     }
 
-    if (this.supportsReasoning && this.collectedReasoning.length > 0) {
-      const reasoningText = this.collectedReasoning.join("\n\n");
-      const inserted = appendReasoningBlockquote(editor, reasoningText, setAtCursor);
-      text += inserted;
+    if (supportsReasoning && this.collectedReasoning.length > 0) {
+      reasoning = this.collectedReasoning.join("\n\n");
       this.collectedReasoning = [];
     }
 
@@ -600,7 +639,7 @@ export class ApiResponseParser {
       });
     }
 
-    return { text, wasAborted };
+    return { text, reasoning, wasAborted };
   }
 
   /**

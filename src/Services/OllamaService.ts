@@ -137,10 +137,20 @@ export class OllamaService extends BaseAiService implements IAiApiService {
     editor: Editor,
     headingPrefix: string,
     setAtCursor?: boolean | undefined,
-    settings?: ChatGPT_MDSettings
+    settings?: ChatGPT_MDSettings,
+    supportsReasoning?: boolean
   ): Promise<StreamingResponse> {
     // Use the default implementation from BaseAiService
-    return this.defaultCallStreamingAPI(apiKey, messages, config, editor, headingPrefix, setAtCursor, settings);
+    return this.defaultCallStreamingAPI(
+      apiKey,
+      messages,
+      config,
+      editor,
+      headingPrefix,
+      setAtCursor,
+      settings,
+      supportsReasoning || false
+    );
   }
 
   protected async callNonStreamingAPI(

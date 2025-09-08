@@ -5,7 +5,7 @@ import { BaseAiService, IAiApiService } from "./AiService";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ApiService } from "./ApiService";
 import { ApiAuthService, isValidApiKey } from "./ApiAuthService";
-import { ApiResponseParser } from "./ApiResponseParser";
+import { ApiResponseParser, appendReasoningBlockquote } from "./ApiResponseParser";
 import { ErrorService } from "./ErrorService";
 import { NotificationService } from "./NotificationService";
 
@@ -187,7 +187,8 @@ export class GeminiService extends BaseAiService implements IAiApiService {
     editor: Editor,
     headingPrefix: string,
     setAtCursor?: boolean | undefined,
-    settings?: ChatGPT_MDSettings
+    settings?: ChatGPT_MDSettings,
+    supportsReasoning?: boolean
   ): Promise<{ fullString: string; mode: "streaming"; wasAborted?: boolean }> {
     try {
       // Use the common preparation method
@@ -211,11 +212,17 @@ export class GeminiService extends BaseAiService implements IAiApiService {
         editor,
         cursorPositions,
         setAtCursor,
-        this.apiService
+        this.apiService,
+        supportsReasoning || false
       );
 
+      if (supportsReasoning && result.reasoning) {
+        const inserted = appendReasoningBlockquote(editor, result.reasoning, setAtCursor);
+        result.text += inserted;
+      }
+
       // Use the helper method to process the result
-      return this.processStreamingResult(result);
+      return this.processStreamingResult({ text: result.text, wasAborted: result.wasAborted });
     } catch (err) {
       // The error is already handled by the ApiService, which uses ErrorService
       // Just return the error message for the chat
@@ -236,15 +243,21 @@ export class GeminiService extends BaseAiService implements IAiApiService {
       config.stream = false;
       const { payload, headers } = this.prepareApiCall(apiKey, messages, config, settings!);
 
-      const response = await this.apiService.makeNonStreamingRequest(
+      const { text, reasoning } = await this.apiService.makeNonStreamingRequest(
         this.getApiUrl(config), // Use custom URL generation for Gemini
         payload,
         headers,
         this.serviceType
       );
 
+      let fullString = text;
+      if (reasoning) {
+        const blockquote = "\n> " + reasoning.trim().replace(/\n/g, "\n> ");
+        fullString += blockquote;
+      }
+
       // Return simple object with response and model
-      return { fullString: response, model: config.model };
+      return { fullString, model: config.model };
     } catch (err) {
       const isTitleInference =
         messages.length === 1 && messages[0].content?.toString().includes("Infer title from the summary");
@@ -270,7 +283,7 @@ export class GeminiService extends BaseAiService implements IAiApiService {
       config.stream = false;
       const { payload, headers } = this.prepareApiCall(apiKey, messages, config, settings, true); // Skip plugin system message
 
-      const response = await this.apiService.makeNonStreamingRequest(
+      const { text } = await this.apiService.makeNonStreamingRequest(
         this.getApiUrl(config), // Use custom URL generation for Gemini
         payload,
         headers,
@@ -278,7 +291,7 @@ export class GeminiService extends BaseAiService implements IAiApiService {
       );
 
       // Return simple object with response and model
-      return response;
+      return text;
     } catch (err) {
       throw err; // Re-throw for title inference error handling
     }
