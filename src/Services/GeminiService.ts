@@ -217,7 +217,12 @@ export class GeminiService extends BaseAiService implements IAiApiService {
       );
 
       if (supportsReasoning && result.reasoning) {
-        const inserted = appendReasoningBlockquote(editor, result.reasoning, setAtCursor);
+        const inserted = appendReasoningBlockquote(
+          editor,
+          result.reasoning,
+          cursorPositions,
+          setAtCursor
+        );
         result.text += inserted;
       }
 
