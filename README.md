@@ -122,6 +122,7 @@ presence_penalty: 0.5
 frequency_penalty: 0.5
 stream: true
 reasoning: true
+debugReasoning: false
 stop: null
 n: 1
 model: gpt-5-mini
@@ -133,6 +134,7 @@ openaiUrl: https://api.openai.com
 ---
 ```
 Use `reasoning: true` to include model reasoning in responses when supported.
+Set `debugReasoning: true` to log reasoning chunks to the developer console.
 💡 Pro tip: Increasing `max_tokens` to a higher value e.g. `4096` for more complex tasks like reasoning, coding or text creation.
 The default model `gpt-5-mini` is optimized for speed and efficiency. Upgrade to `gpt-5` for enhanced reasoning capabilities or use `gpt-5-nano` for ultra-lightweight responses.
 

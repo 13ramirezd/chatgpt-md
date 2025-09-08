@@ -160,6 +160,8 @@ export abstract class BaseAiService implements IAiApiService {
       REASONING_MODELS.some((prefix) => modelName?.startsWith(prefix));
     this.apiResponseParser.setSupportsReasoning(supportsReasoning);
     this.apiService.setSupportsReasoning(supportsReasoning);
+    const debugReasoning = Boolean(options.debugReasoning);
+    this.apiResponseParser.setDebugReasoning(debugReasoning);
 
     return options.stream && editor
       ? this.callStreamingAPI(

@@ -15,6 +15,7 @@
     "yarn:build:full-analysis": "yarn build && yarn analyze",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
+    "test:debug-reasoning": "node scripts/test-debug-reasoning.mjs",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "update-version": "node update-version.mjs"
   },
