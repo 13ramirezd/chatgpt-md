@@ -17,9 +17,19 @@ import { ApiService } from "./ApiService";
 export function appendReasoningBlockquote(
   editor: Editor,
   text: string,
+  cursorPositions: {
+    initialCursor: { line: number; ch: number };
+    newCursor: { line: number; ch: number };
+  },
   setAtCursor?: boolean
 ): string {
   const blockquote = "\n> " + text.trim().replace(/\n/g, "\n> ");
+  // Avoid manipulating text when there's an active selection
+  const selection = editor.getSelection();
+  if (selection && selection.length > 0) {
+    editor.setCursor(cursorPositions.newCursor);
+  }
+
   if (setAtCursor) {
     editor.replaceSelection(blockquote);
   } else {
